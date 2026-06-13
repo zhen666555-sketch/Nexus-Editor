@@ -433,6 +433,54 @@ describe("createEditor", () => {
     editor.destroy();
   });
 
+  it("returns empty string when no text is selected (collapsed cursor)", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({ container, initialValue: "Hello World" });
+
+    // 光标未选中范围时，getSelectedText() 返回空字符串
+    expect(editor.getSelectedText()).toBe("");
+    editor.destroy();
+  });
+
+  it("returns selected text for a forward selection", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({ container, initialValue: "Hello World" });
+
+    // 正向选区：anchor < head
+    editor.setSelection(0, 5);
+    expect(editor.getSelectedText()).toBe("Hello");
+    editor.destroy();
+  });
+
+  it("returns selected text for a backward selection", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({ container, initialValue: "Hello World" });
+
+    // 反向选区：head < anchor，仍应正确提取文本
+    editor.setSelection(5, 0);
+    expect(editor.getSelectedText()).toBe("Hello");
+    editor.destroy();
+  });
+
+  it("returns entire document when all text is selected", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({ container, initialValue: "Full document" });
+
+    editor.setSelection(0, "Full document".length);
+    expect(editor.getSelectedText()).toBe("Full document");
+    editor.destroy();
+  });
+
+  it("returns selected text after document changes", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({ container, initialValue: "Old" });
+
+    editor.setDocument("New content here");
+    editor.setSelection(4, 11);
+    expect(editor.getSelectedText()).toBe("content");
+    editor.destroy();
+  });
+
   // ── HTML export ──
 
   it("exports markdown to semantic HTML", () => {

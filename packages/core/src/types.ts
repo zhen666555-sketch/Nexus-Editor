@@ -140,6 +140,8 @@ export interface EditorAPI {
   exportHTML(): string;
   setTheme(theme: import("./theme").NexusTheme): void;
   getSelection(): { anchor: number; head: number };
+  /** 返回当前选区内的文本。光标未选中范围时返回空字符串。 */
+  getSelectedText(): string;
   getSlashCommands(): SlashCommandDef[];
   uploadAsset(file: File): Promise<string | null>;
   setSelection(anchor: number, head?: number): void;
