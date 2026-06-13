@@ -7,15 +7,23 @@ export function useEditor(config: UseEditorConfig): UseEditorResult {
   const containerRef = ref<HTMLDivElement | null>(null);
   const editor = shallowRef<ReturnType<typeof createEditor> | null>(null);
 
+  const { onReady, ...editorConfig } = config;
+
   onMounted(() => {
     if (!containerRef.value || editor.value) {
       return;
     }
 
-    editor.value = createEditor({
+    const instance = createEditor({
       container: containerRef.value,
-      ...config
+      ...editorConfig
     });
+
+    editor.value = instance;
+
+    if (onReady) {
+      onReady(instance);
+    }
   });
 
   onBeforeUnmount(() => {
