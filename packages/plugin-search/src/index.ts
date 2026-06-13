@@ -25,6 +25,8 @@ export interface SearchMatch {
 
 export interface SearchOptions {
   caseSensitive?: boolean;
+  /** 仅匹配完整单词（两侧为非单词字符或文档边界）。 */
+  wholeWord?: boolean;
 }
 
 export interface SearchPluginOptions {
@@ -36,6 +38,10 @@ export interface SearchPluginOptions {
    * Enable case-sensitive search by default.
    */
   caseSensitive?: boolean;
+  /**
+   * Enable whole-word search by default.
+   */
+  wholeWord?: boolean;
   /**
    * Highlight viewport matches for the current selection.
    */
@@ -89,7 +95,10 @@ export function findSearchMatches(
   }
 
   const flags = options.caseSensitive ? "g" : "gi";
-  const pattern = new RegExp(escapeRegExp(query), flags);
+  const escaped = escapeRegExp(query);
+  // wholeWord 模式：用 \b 单词边界包裹查询词
+  const source = options.wholeWord ? `\\b${escaped}\\b` : escaped;
+  const pattern = new RegExp(source, flags);
   const matches: SearchMatch[] = [];
 
   for (const match of doc.matchAll(pattern)) {
@@ -117,7 +126,9 @@ export function replaceAllMatches(
   }
 
   const flags = options.caseSensitive ? "g" : "gi";
-  return doc.replace(new RegExp(escapeRegExp(query), flags), replacement);
+  const escaped = escapeRegExp(query);
+  const source = options.wholeWord ? `\\b${escaped}\\b` : escaped;
+  return doc.replace(new RegExp(source, flags), replacement);
 }
 
 function resolveLabel(
@@ -539,6 +550,7 @@ export function createSearchPlugin(options: SearchPluginOptions = {}): NexusPlug
     search({
       top: options.top ?? true,
       caseSensitive: options.caseSensitive ?? false,
+      wholeWord: options.wholeWord ?? false,
       literal: true,
       createPanel: (view) => new NexusSearchPanel(view, options.top ?? true, options.labels)
     }),

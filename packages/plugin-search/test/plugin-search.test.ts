@@ -25,6 +25,51 @@ describe("@floatboat/nexus-plugin-search", () => {
     expect(replaceAllMatches("cat scatter cat", "cat", "dog")).toBe("dog sdogter dog");
   });
 
+  it("finds only whole-word matches when wholeWord is enabled", () => {
+    // "cat" 出现在 "cat"（独立词）和 "scatter"（子串）中，wholeWord 只匹配独立词
+    expect(findSearchMatches("cat scatter cat", "cat", { wholeWord: true })).toEqual([
+      { from: 0, to: 3, text: "cat" },
+      { from: 12, to: 15, text: "cat" }
+    ]);
+  });
+
+  it("wholeWord matches words at document boundaries", () => {
+    // 文档开头和结尾的单词也应被 \b 匹配
+    expect(findSearchMatches("hello world hello", "hello", { wholeWord: true })).toEqual([
+      { from: 0, to: 5, text: "hello" },
+      { from: 12, to: 17, text: "hello" }
+    ]);
+  });
+
+  it("wholeWord is case-insensitive by default", () => {
+    expect(findSearchMatches("Cat scatter CAT", "cat", { wholeWord: true })).toEqual([
+      { from: 0, to: 3, text: "Cat" },
+      { from: 12, to: 15, text: "CAT" }
+    ]);
+  });
+
+  it("wholeWord with caseSensitive only matches exact case whole words", () => {
+    expect(findSearchMatches("Cat scatter cat", "cat", { wholeWord: true, caseSensitive: true })).toEqual([
+      { from: 12, to: 15, text: "cat" }
+    ]);
+  });
+
+  it("wholeWord matches words adjacent to punctuation", () => {
+    // 标点符号也是单词边界
+    expect(findSearchMatches("cat, dog. (cat)", "cat", { wholeWord: true })).toEqual([
+      { from: 0, to: 3, text: "cat" },
+      { from: 11, to: 14, text: "cat" }
+    ]);
+  });
+
+  it("replaces only whole-word matches when wholeWord is enabled", () => {
+    expect(replaceAllMatches("cat scatter cat", "cat", "dog", { wholeWord: true })).toBe("dog scatter dog");
+  });
+
+  it("replaces whole-word matches case-insensitively by default", () => {
+    expect(replaceAllMatches("Cat scatter cat", "cat", "dog", { wholeWord: true })).toBe("dog scatter dog");
+  });
+
   it("creates a search plugin descriptor", () => {
     const plugin = createSearchPlugin();
 
