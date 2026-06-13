@@ -54,4 +54,105 @@ describe("internationalization", () => {
       expect(enLocale[key].length).toBeGreaterThan(0);
     }
   });
+
+  it("getLocale returns the initial locale", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({
+      container,
+      initialValue: "hello",
+      locale: zhLocale,
+    });
+
+    const locale = editor.getLocale();
+    expect(locale.addColumn).toBe("添加列");
+    editor.destroy();
+  });
+
+  it("getLocale returns English by default", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({
+      container,
+      initialValue: "hello",
+    });
+
+    const locale = editor.getLocale();
+    expect(locale.addColumn).toBe("Add column");
+    editor.destroy();
+  });
+
+  it("setLocale switches locale at runtime", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({
+      container,
+      initialValue: "hello",
+    });
+
+    // 初始为英文
+    expect(editor.getLocale().addColumn).toBe("Add column");
+
+    // 切换为中文
+    editor.setLocale(zhLocale);
+    expect(editor.getLocale().addColumn).toBe("添加列");
+
+    // 切换回英文
+    editor.setLocale(enLocale);
+    expect(editor.getLocale().addColumn).toBe("Add column");
+
+    editor.destroy();
+  });
+
+  it("setLocale emits localeChange event", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({
+      container,
+      initialValue: "hello",
+    });
+
+    const received: import("../src/locale").NexusLocale[] = [];
+    editor.on("localeChange", (locale) => {
+      received.push(locale);
+    });
+
+    editor.setLocale(zhLocale);
+    expect(received).toHaveLength(1);
+    expect(received[0].addColumn).toBe("添加列");
+
+    editor.destroy();
+  });
+
+  it("setLocale with partial override merges with English defaults", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({
+      container,
+      initialValue: "hello",
+    });
+
+    editor.setLocale({ addColumn: "Custom" });
+    const locale = editor.getLocale();
+    expect(locale.addColumn).toBe("Custom");
+    expect(locale.addRow).toBe("Add row"); // 英文默认值
+
+    editor.destroy();
+  });
+
+  it("setLocale updates live-preview table labels", () => {
+    const container = document.createElement("div");
+    const editor = createEditor({
+      container,
+      initialValue: "| A | B |\n| --- | --- |\n| 1 | 2 |",
+      livePreview: true,
+      plugins: [createGfmPreset()]
+    });
+
+    // 初始为英文
+    const enBtn = container.querySelector("button[title='Add column']");
+    expect(enBtn).not.toBeNull();
+
+    // 切换为中文后，live-preview 应重建并使用中文标签
+    editor.setLocale(zhLocale);
+    const zhBtn = container.querySelector("button[title='添加列']");
+    expect(zhBtn).not.toBeNull();
+
+    editor.destroy();
+  });
 });

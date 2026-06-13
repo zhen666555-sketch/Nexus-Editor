@@ -1041,7 +1041,9 @@ function buildDecorations(
   selection: readonly SelectionRange[],
   config: NormalizedLivePreviewConfig,
   viewRef: { current: EditorView | null },
-  ctx: BuildContext
+  ctx: BuildContext,
+  localeField?: StateField<import("./locale").NexusLocale>,
+  labelsVersion?: number
 ): { decos: DecorationSet; ast: Root; codeTokens: CodeHighlightToken[] } {
   if (!config.enabled) return { decos: Decoration.none, ast: ctx.ast ?? createEmptyAst(), codeTokens: [] };
 
@@ -1079,7 +1081,7 @@ function buildDecorations(
       decos.push(
         Decoration.replace({
           widget: new EditableTableWidget(
-            range.node as Table, range.from, range.source, viewRef, config.labels
+            range.node as Table, range.from, range.source, viewRef, config.labels, labelsVersion ?? 0
           ),
           block: true
         }).range(range.from, range.to)
@@ -1300,14 +1302,16 @@ function buildDecorations(
 
 export function createLivePreviewExtension(
   config: boolean | LivePreviewConfig | undefined,
-  localeLabels?: LivePreviewLabels
+  localeField?: StateField<import("./locale").NexusLocale>,
+  initialLocaleLabels?: LivePreviewLabels
 ): Extension[] {
   const normalized = normalizeConfig(config);
   if (!normalized.enabled) return [];
-  // Locale labels override config labels
-  if (localeLabels) {
-    Object.assign(normalized.labels, localeLabels);
+  // 初始 locale labels（创建时传入）
+  if (initialLocaleLabels) {
+    Object.assign(normalized.labels, initialLocaleLabels);
   }
+  let labelsVersion = 0;
 
   const viewRef: { current: EditorView | null } = { current: null };
 
@@ -1329,7 +1333,7 @@ export function createLivePreviewExtension(
       const out = buildDecorations(state, selection, normalized, viewRef, {
         ...ctx,
         compositionActive,
-      });
+      }, localeField, labelsVersion);
       lastBuilt = { doc: docStr, ast: out.ast, codeTokens: out.codeTokens };
       return out.decos;
     } catch (err) {
@@ -1358,6 +1362,24 @@ export function createLivePreviewExtension(
       if (tr.effects.some((effect) => effect.is(rebuildAfterComposition))) {
         compositionActive = false;
         return build(tr.state, tr.state.selection.ranges, false);
+      }
+      // locale 切换时重建 decorations 以刷新表格等标签
+      if (localeField) {
+        try {
+          const prevLocale = tr.startState.field(localeField);
+          const nextLocale = tr.state.field(localeField);
+          if (prevLocale !== nextLocale) {
+            // locale 变化时更新 normalized.labels，使重建的 widget 使用新标签
+            if (nextLocale.addColumn) normalized.labels.addColumn = nextLocale.addColumn;
+            if (nextLocale.addRow) normalized.labels.addRow = nextLocale.addRow;
+            if (nextLocale.deleteColumn) normalized.labels.deleteColumn = nextLocale.deleteColumn;
+            if (nextLocale.deleteRow) normalized.labels.deleteRow = nextLocale.deleteRow;
+            if (nextLocale.insertColumnAfter) normalized.labels.insertColumnAfter = nextLocale.insertColumnAfter;
+            if (nextLocale.insertRowBelow) normalized.labels.insertRowBelow = nextLocale.insertRowBelow;
+            labelsVersion++;
+            return build(tr.state, tr.state.selection.ranges, false);
+          }
+        } catch { /* localeField not available */ }
       }
       if (tr.isUserEvent("input.type.compose")) {
         compositionActive = true;

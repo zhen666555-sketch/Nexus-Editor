@@ -1,9 +1,64 @@
 import type { LinkIndex, BacklinkHit } from "./link-index";
 
+/** 反向链接面板标签接口，定义所有可国际化的文本 */
+interface BacklinksPanelLabels {
+  /** 面板标题 */
+  title: string;
+  /** 无活动文件时的提示文本 */
+  noActiveFile: string;
+  /** 链接提及区域标题 */
+  linkedMentions: string;
+  /** 无链接提及时的提示文本 */
+  noLinkedMentions: string;
+  /** 未链接提及区域标题 */
+  unlinkedMentions: string;
+  /** 未链接提及扫描中的提示文本 */
+  unlinkedScanning: string;
+  /** 无未链接提及时的提示文本 */
+  noUnlinkedMentions: string;
+  /** 摘要为空时的占位文本 */
+  empty: string;
+}
+
+/** 英文标签预设 */
+const BACKLINKS_LABELS_EN: BacklinksPanelLabels = {
+  title: "Backlinks",
+  noActiveFile: "No active file",
+  linkedMentions: "Linked mentions",
+  noLinkedMentions: "No linked mentions",
+  unlinkedMentions: "Unlinked mentions",
+  unlinkedScanning: "Unlinked mentions — scanning…",
+  noUnlinkedMentions: "No unlinked mentions",
+  empty: "(empty)",
+};
+
+/** 中文标签预设 */
+const BACKLINKS_LABELS_ZH: BacklinksPanelLabels = {
+  title: "反向链接",
+  noActiveFile: "无活动文件",
+  linkedMentions: "链接提及",
+  noLinkedMentions: "无链接提及",
+  unlinkedMentions: "未链接提及",
+  unlinkedScanning: "未链接提及 — 扫描中…",
+  noUnlinkedMentions: "无未链接提及",
+  empty: "(空)",
+};
+
+/**
+ * 根据语言代码获取反向链接面板标签
+ * @param lang - 语言代码，如 "en"、"zh"
+ * @returns 对应语言的标签对象
+ */
+function getBacklinksLabels(lang: string): BacklinksPanelLabels {
+  return lang === "zh" ? BACKLINKS_LABELS_ZH : BACKLINKS_LABELS_EN;
+}
+
 export interface BacklinksPanelOptions {
   index: LinkIndex;
   onOpenFile(filePath: string): void;
   getActiveFile(): string | null;
+  /** 语言代码，默认 "en"，支持 "zh" 中文 */
+  lang?: string;
 }
 
 export interface BacklinksPanel {
@@ -125,8 +180,14 @@ const BADGE_STYLES = `
   text-transform: none;
 `;
 
+/**
+ * 创建反向链接面板
+ * @param options - 面板配置项，包含链接索引、文件打开回调、活动文件获取和语言代码
+ * @returns BacklinksPanel 实例，包含 DOM 元素、刷新和销毁方法
+ */
 export function createBacklinksPanel(options: BacklinksPanelOptions): BacklinksPanel {
   const { index, onOpenFile, getActiveFile } = options;
+  const l = getBacklinksLabels(options.lang ?? "en");
 
   const root = document.createElement("aside");
   root.className = "backlinks-panel";
@@ -134,7 +195,7 @@ export function createBacklinksPanel(options: BacklinksPanelOptions): BacklinksP
 
   const header = document.createElement("div");
   header.style.cssText = HEADER_STYLES;
-  header.textContent = "Backlinks";
+  header.textContent = l.title;
   root.appendChild(header);
 
   const list = document.createElement("div");
@@ -179,7 +240,7 @@ export function createBacklinksPanel(options: BacklinksPanelOptions): BacklinksP
 
     const snippet = document.createElement("div");
     snippet.style.cssText = ITEM_SNIPPET_STYLES;
-    snippet.textContent = hit.snippet || "(empty)";
+    snippet.textContent = hit.snippet || l.empty;
     btn.appendChild(snippet);
 
     parent.appendChild(btn);
@@ -204,18 +265,18 @@ export function createBacklinksPanel(options: BacklinksPanelOptions): BacklinksP
     list.textContent = "";
     const active = getActiveFile();
     if (!active) {
-      header.textContent = "Backlinks";
-      renderEmpty("No active file", list);
+      header.textContent = l.title;
+      renderEmpty(l.noActiveFile, list);
       return;
     }
 
     // Fast path: linked mentions are O(1) (Map lookup) — render immediately.
     const linked = index.getBacklinks(active);
-    header.textContent = `Backlinks · ${linked.length} linked · … mentions`;
+    header.textContent = `${l.title} · ${linked.length} linked · … mentions`;
 
-    renderSectionHeader("Linked mentions", linked.length, list);
+    renderSectionHeader(l.linkedMentions, linked.length, list);
     if (linked.length === 0) {
-      renderEmpty("No linked mentions", list);
+      renderEmpty(l.noLinkedMentions, list);
     } else {
       for (const hit of linked) renderItem(hit, list);
     }
@@ -223,8 +284,8 @@ export function createBacklinksPanel(options: BacklinksPanelOptions): BacklinksP
     // Placeholder for unlinked section — filled asynchronously so we don't
     // block the UI thread with the O(vault-size) regex scan in
     // getUnlinkedMentions.
-    const unlinkedHeader = renderSectionHeader("Unlinked mentions", 0, list);
-    unlinkedHeader.textContent = "Unlinked mentions — scanning…";
+    const unlinkedHeader = renderSectionHeader(l.unlinkedMentions, 0, list);
+    unlinkedHeader.textContent = l.unlinkedScanning;
     const unlinkedContainer = document.createElement("div");
     list.appendChild(unlinkedContainer);
 
@@ -241,11 +302,11 @@ export function createBacklinksPanel(options: BacklinksPanelOptions): BacklinksP
           "backlinks.unlinked-scan", `${(t1 - t0).toFixed(1)}ms`,
           { hits: unlinked.length });
       }
-      header.textContent = `Backlinks · ${linked.length} linked · ${unlinked.length} mention${unlinked.length === 1 ? "" : "s"}`;
+      header.textContent = `${l.title} · ${linked.length} linked · ${unlinked.length} mention${unlinked.length === 1 ? "" : "s"}`;
       unlinkedHeader.textContent = "";
-      renderSectionHeaderInto(unlinkedHeader, "Unlinked mentions", unlinked.length);
+      renderSectionHeaderInto(unlinkedHeader, l.unlinkedMentions, unlinked.length);
       if (unlinked.length === 0) {
-        renderEmpty("No unlinked mentions", unlinkedContainer);
+        renderEmpty(l.noUnlinkedMentions, unlinkedContainer);
       } else {
         for (const hit of unlinked) renderItem(hit, unlinkedContainer);
       }

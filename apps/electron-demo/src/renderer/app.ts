@@ -17,31 +17,74 @@ let outline: OutlinePanel;
 let searchBar: SearchBar;
 let vault: VaultPanel;
 let backlinks: BacklinksPanel;
+let editorContainer: HTMLElement;
+let appToolbar: HTMLElement;
 
 const linkIndex = new LinkIndex();
 state.linkIndex = linkIndex;
 
-function createAppToolbar(): HTMLElement {
+/** 应用工具栏标签（顶部 Vault/Open/Save 等按钮） */
+interface AppToolbarLabels {
+  vault: string;
+  open: string;
+  save: string;
+  saveAs: string;
+  vaultToggle: string;
+  outlineToggle: string;
+  backlinksToggle: string;
+  search: string;
+  settings: string;
+}
+
+const APP_LABELS_EN: AppToolbarLabels = {
+  vault: "Vault",
+  open: "Open",
+  save: "Save",
+  saveAs: "Save As",
+  vaultToggle: "Toggle vault panel",
+  outlineToggle: "Toggle outline",
+  backlinksToggle: "Toggle backlinks panel",
+  search: "Search (Ctrl+F)",
+  settings: "Settings",
+};
+
+const APP_LABELS_ZH: AppToolbarLabels = {
+  vault: "仓库",
+  open: "打开",
+  save: "保存",
+  saveAs: "另存为",
+  vaultToggle: "切换仓库面板",
+  outlineToggle: "切换大纲",
+  backlinksToggle: "切换反向链接面板",
+  search: "搜索 (Ctrl+F)",
+  settings: "设置",
+};
+
+function getAppLabels(lang: string): AppToolbarLabels {
+  return lang === "zh" ? APP_LABELS_ZH : APP_LABELS_EN;
+}
+
+function createAppToolbar(labels: AppToolbarLabels): HTMLElement {
   const toolbar = document.createElement("div");
   toolbar.className = "toolbar";
 
   const vaultBtn = document.createElement("button");
-  vaultBtn.textContent = "Vault";
+  vaultBtn.textContent = labels.vault;
   vaultBtn.title = "Open a folder as a vault";
   vaultBtn.addEventListener("click", () => {
     void vault.promptPickVault();
   });
 
   const openBtn = document.createElement("button");
-  openBtn.textContent = "Open";
+  openBtn.textContent = labels.open;
   openBtn.addEventListener("click", handleOpen);
 
   const saveBtn = document.createElement("button");
-  saveBtn.textContent = "Save";
+  saveBtn.textContent = labels.save;
   saveBtn.addEventListener("click", handleSave);
 
   const saveAsBtn = document.createElement("button");
-  saveAsBtn.textContent = "Save As";
+  saveAsBtn.textContent = labels.saveAs;
   saveAsBtn.addEventListener("click", handleSaveAs);
 
   const spacer = document.createElement("div");
@@ -49,31 +92,31 @@ function createAppToolbar(): HTMLElement {
 
   const vaultToggleBtn = document.createElement("button");
   vaultToggleBtn.textContent = "\uD83D\uDCD1"; // 📑
-  vaultToggleBtn.title = "Toggle vault panel";
+  vaultToggleBtn.title = labels.vaultToggle;
   vaultToggleBtn.style.fontSize = "14px";
   vaultToggleBtn.addEventListener("click", toggleVault);
 
   const outlineBtn = document.createElement("button");
   outlineBtn.textContent = "\u2630"; // ☰
-  outlineBtn.title = "Toggle outline";
+  outlineBtn.title = labels.outlineToggle;
   outlineBtn.style.fontSize = "14px";
   outlineBtn.addEventListener("click", toggleOutline);
 
   const backlinksBtn = document.createElement("button");
   backlinksBtn.textContent = "\uD83D\uDD17"; // 🔗
-  backlinksBtn.title = "Toggle backlinks panel";
+  backlinksBtn.title = labels.backlinksToggle;
   backlinksBtn.style.fontSize = "14px";
   backlinksBtn.addEventListener("click", toggleBacklinks);
 
   const searchBtn = document.createElement("button");
   searchBtn.textContent = "\uD83D\uDD0D"; // 🔍
-  searchBtn.title = "Search (Ctrl+F)";
+  searchBtn.title = labels.search;
   searchBtn.style.fontSize = "14px";
   searchBtn.addEventListener("click", () => searchBar.open());
 
   const settingsBtn = document.createElement("button");
   settingsBtn.textContent = "\u2699"; // ⚙
-  settingsBtn.title = "Settings";
+  settingsBtn.title = labels.settings;
   settingsBtn.style.fontSize = "16px";
   settingsBtn.addEventListener("click", handleSettings);
 
@@ -175,9 +218,99 @@ async function handleSaveAs(): Promise<void> {
 }
 
 function handleSettings(): void {
-  createSettingsPanel(settings, (next) => {
+  const prevLang = settings.language;
+  createSettingsPanel(settings, (next: EditorSettings) => {
     settings = next;
-    shell.applySettings(settings);
+    if (next.language !== prevLang) {
+      // 语言切换：重建所有 UI 组件
+      rebuildAll(next);
+    } else {
+      shell.applySettings(settings);
+    }
+  });
+}
+
+/** 语言切换时重建所有 UI 组件（app toolbar、editor shell、search bar、outline、backlinks） */
+function rebuildAll(next: EditorSettings): void {
+  // 1. 重建 app toolbar
+  const newAppToolbar = createAppToolbar(getAppLabels(next.language));
+  appToolbar.replaceWith(newAppToolbar);
+  appToolbar = newAppToolbar;
+
+  // 2. 销毁旧 shell（会移除 editorContainer 内的 toolbar + editor DOM）
+  shell.destroy();
+
+  // 3. 清理 editorContainer 中残留的 DOM
+  editorContainer.innerHTML = "";
+
+  // 4. 重建 editor shell（会在 editorContainer 内插入新的 toolbar + editor）
+  shell = createEditorShell({
+    container: editorContainer,
+    state,
+    settings: next,
+    onStateChange: renderStatus,
+    resolveWikilink: (name) => linkIndex.resolve(name, state.activeFile),
+    suggestWikilinks: (q) => {
+      const names = linkIndex.getAllNoteNames();
+      if (!q) return names.slice(0, 50);
+      const qLower = q.toLowerCase();
+      return names.filter((n) => n.toLowerCase().includes(qLower)).slice(0, 50);
+    },
+    onWikilinkNavigate: (target, opts) => {
+      void handleWikilinkNavigate(target, opts);
+    },
+  });
+
+  // 5. 重建 search bar（绑定到新 editor，传入语言参数）
+  const oldSearchBar = searchBar.element;
+  searchBar = createSearchBar(shell.editor, next.language);
+  oldSearchBar.replaceWith(searchBar.element);
+
+  // 6. 重建 outline（绑定到新 editor，传入语言参数）
+  const oldOutline = outline.element;
+  outline = createOutlinePanel(shell.editor, next.language);
+  oldOutline.replaceWith(outline.element);
+
+  // 7. 重建 backlinks（传入语言参数）
+  const oldBacklinks = backlinks.element;
+  backlinks = createBacklinksPanel({
+    index: linkIndex,
+    onOpenFile: (filePath) => void handleVaultFileOpen(filePath),
+    getActiveFile: () => state.activeFile,
+    lang: next.language,
+  });
+  oldBacklinks.replaceWith(backlinks.element);
+
+  // 8. 重建 vault panel（传入语言参数）
+  const oldVault = vault.element;
+  vault = createVaultPanel(
+    {
+      onOpenFile: (filePath) => {
+        void handleVaultFileOpen(filePath);
+      },
+      onError: (message) => {
+        state.error = message;
+        renderStatus();
+      },
+      onStatus: (_message) => {
+        renderStatus();
+      },
+    },
+    next.language
+  );
+  // 保留 vault.openVault 的包装逻辑
+  const originalOpenVault = vault.openVault;
+  vault.openVault = async (nextPath: string) => {
+    await originalOpenVault(nextPath);
+    state.vaultPath = nextPath;
+    renderStatus();
+    void seedLinkIndex();
+  };
+  oldVault.replaceWith(vault.element);
+
+  // 9. 通知 Electron 主进程切换菜单栏语言
+  window.nexusDemo.setMenuLanguage?.(next.language).catch(() => {
+    // 非 Electron 环境下忽略
   });
 }
 
@@ -345,7 +478,7 @@ function boot(): void {
   const root = document.getElementById("app");
   if (!root) throw new Error("Missing #app element");
 
-  const appToolbar = createAppToolbar();
+  appToolbar = createAppToolbar(getAppLabels(settings.language));
   const statusLine = createStatusLine();
 
   const mainArea = document.createElement("div");
@@ -354,7 +487,7 @@ function boot(): void {
   const editorColumn = document.createElement("div");
   editorColumn.className = "editor-column";
 
-  const editorContainer = document.createElement("div");
+  editorContainer = document.createElement("div");
   editorContainer.className = "editor-container";
 
   root.append(appToolbar, mainArea, statusLine);
@@ -376,18 +509,21 @@ function boot(): void {
     },
   });
 
-  vault = createVaultPanel({
-    onOpenFile: (filePath) => {
-      void handleVaultFileOpen(filePath);
+  vault = createVaultPanel(
+    {
+      onOpenFile: (filePath) => {
+        void handleVaultFileOpen(filePath);
+      },
+      onError: (message) => {
+        state.error = message;
+        renderStatus();
+      },
+      onStatus: (_message) => {
+        renderStatus();
+      },
     },
-    onError: (message) => {
-      state.error = message;
-      renderStatus();
-    },
-    onStatus: (_message) => {
-      renderStatus();
-    },
-  });
+    settings.language
+  );
 
   // Keep state in sync when the vault panel picks a new vault.
   const originalOpenVault = vault.openVault;
@@ -399,12 +535,13 @@ function boot(): void {
     void seedLinkIndex();
   };
 
-  outline = createOutlinePanel(shell.editor);
-  searchBar = createSearchBar(shell.editor);
+  outline = createOutlinePanel(shell.editor, settings.language);
+  searchBar = createSearchBar(shell.editor, settings.language);
   backlinks = createBacklinksPanel({
     index: linkIndex,
     onOpenFile: (filePath) => void handleVaultFileOpen(filePath),
     getActiveFile: () => state.activeFile,
+    lang: settings.language,
   });
 
   editorColumn.append(searchBar.element, editorContainer);
@@ -424,6 +561,11 @@ function boot(): void {
 
   renderStatus();
   perfEnd(bootScope);
+
+  // 通知 Electron 主进程设置初始菜单语言
+  window.nexusDemo.setMenuLanguage?.(settings.language).catch(() => {
+    // 非 Electron 环境下忽略
+  });
 
   // Defer vault restore until after first paint so the window pops open with
   // a usable UI; the vault read + link-index seed then runs while the user

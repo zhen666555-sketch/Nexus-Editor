@@ -1,4 +1,4 @@
-import { Annotation, EditorState } from "@codemirror/state";
+import { Annotation, EditorState, StateEffect, StateField } from "@codemirror/state";
 
 // Annotation attached to dispatches that load content programmatically (e.g.
 // setDocument from file open) so updateListener can skip the user-edit path —
@@ -19,8 +19,26 @@ import { createLivePreviewExtension } from "./live-preview";
 import { createMarkdownLanguageSupport } from "./lezer-markdown";
 import { lezerStringToMdast, lezerTreeToMdast } from "./lezer-mdast-adapter";
 import { markdownFoldService } from "./markdown-fold";
-import { resolveLocale } from "./locale";
+import { resolveLocale, type NexusLocale } from "./locale";
 import { markdownAutoPair } from "./markdown-autopair";
+
+/** StateEffect：运行时切换 locale。 */
+const localeEffect = StateEffect.define<Partial<NexusLocale>>();
+
+/** StateField：存储当前 locale，供 live-preview 等扩展动态读取。 */
+const localeField = StateField.define<NexusLocale>({
+  create() {
+    return resolveLocale();
+  },
+  update(value, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(localeEffect)) {
+        return resolveLocale(effect.value);
+      }
+    }
+    return value;
+  },
+});
 import { markdownKeymap } from "./markdown-keymap";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
 import { createThemeExtension, lightTheme, type NexusTheme } from "./theme";
@@ -599,6 +617,7 @@ export function createEditor(config: EditorConfig): EditorAPI {
         createMarkdownLanguageSupport(),
         lineNumbers(),
         themeExt.extension,
+        localeField.init(() => locale),
         tabSizeExt,
         readOnlyExt,
         directionExt,
@@ -646,7 +665,7 @@ export function createEditor(config: EditorConfig): EditorAPI {
             return false;
           },
         }),
-        ...createLivePreviewExtension(config.livePreview, {
+        ...createLivePreviewExtension(config.livePreview, localeField, {
           addColumn: locale.addColumn,
           addRow: locale.addRow,
           deleteColumn: locale.deleteColumn,
@@ -814,6 +833,17 @@ export function createEditor(config: EditorConfig): EditorAPI {
       const words = doc.trim() === "" ? 0 : doc.trim().split(/\s+/).length;
       const lines = view.state.doc.lines;
       return { characters, words, lines };
+    },
+    getLocale() {
+      return view.state.field(localeField);
+    },
+    setLocale(partial) {
+      if (destroyed) return;
+      const next = resolveLocale(partial);
+      view.dispatch({
+        effects: localeEffect.of(next),
+      });
+      emitter.emit("localeChange", next);
     },
     destroy() {
       debugNexus("destroy", {

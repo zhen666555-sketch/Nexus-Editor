@@ -12,7 +12,8 @@ import {
 export { toggleBlockquote, toggleOrderedList, toggleUnorderedList, insertCodeBlock, insertImage, insertHorizontalRule, applyTextColor, applyHighlight } from "./formatting";
 export { createToolbarUI } from "./toolbar-ui";
 export { colorDecorationExtension } from "./color-decoration";
-export type { ToolbarUI, ToolbarUIOptions, ToolbarButton, ToolbarGroup } from "./toolbar-ui";
+export type { ToolbarUI, ToolbarUIOptions, ToolbarButton, ToolbarGroup, ToolbarLabels } from "./toolbar-ui";
+export { zhToolbarLabels } from "./toolbar-ui";
 
 export function toggleWrap(editor: EditorAPI, marker: string): boolean {
   const doc = editor.getDocument();

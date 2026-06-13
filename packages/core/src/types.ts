@@ -124,6 +124,7 @@ export interface EditorEventMap {
   blur: () => void;
   selectionChange: (selection: { anchor: number; head: number }) => void;
   slashMenuChange: (state: SlashMenuState) => void;
+  localeChange: (locale: import("./locale").NexusLocale) => void;
 }
 
 export interface TocEntry {
@@ -181,6 +182,10 @@ export interface EditorAPI {
    */
   getPosAtDOM(node: HTMLElement): number | null;
   getDocumentStats(): { characters: number; words: number; lines: number };
+  /** 返回当前 locale 配置。 */
+  getLocale(): import("./locale").NexusLocale;
+  /** 运行时切换编辑器语言，触发 localeChange 事件并刷新 live-preview 标签。 */
+  setLocale(locale: Partial<import("./locale").NexusLocale>): void;
 }
 
 export interface SlashCommandDef {

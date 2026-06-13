@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, shell } from "electron";
 import { readFile, writeFile, readdir, mkdir, rename, stat } from "node:fs/promises";
 import { existsSync, watch, type FSWatcher } from "node:fs";
 import path from "node:path";
@@ -14,6 +14,186 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let mainWindow: BrowserWindow | null = null;
+
+// -- 菜单国际化定义 -----------------------------------------------------------
+
+/** 菜单标签集合，用于构建不同语言的应用菜单 */
+interface MenuLabels {
+  file: string;
+  newFile: string;
+  openFile: string;
+  save: string;
+  saveAs: string;
+  edit: string;
+  undo: string;
+  redo: string;
+  cut: string;
+  copy: string;
+  paste: string;
+  selectAll: string;
+  view: string;
+  reload: string;
+  forceReload: string;
+  toggleDevTools: string;
+  actualSize: string;
+  zoomIn: string;
+  zoomOut: string;
+  toggleFullScreen: string;
+  window: string;
+  minimize: string;
+  close: string;
+  help: string;
+  about: string;
+}
+
+/** 英文菜单标签 */
+const MENU_LABELS_EN: MenuLabels = {
+  file: "File",
+  newFile: "New File",
+  openFile: "Open File\u2026",
+  save: "Save",
+  saveAs: "Save As\u2026",
+  edit: "Edit",
+  undo: "Undo",
+  redo: "Redo",
+  cut: "Cut",
+  copy: "Copy",
+  paste: "Paste",
+  selectAll: "Select All",
+  view: "View",
+  reload: "Reload",
+  forceReload: "Force Reload",
+  toggleDevTools: "Toggle Developer Tools",
+  actualSize: "Actual Size",
+  zoomIn: "Zoom In",
+  zoomOut: "Zoom Out",
+  toggleFullScreen: "Toggle Full Screen",
+  window: "Window",
+  minimize: "Minimize",
+  close: "Close",
+  help: "Help",
+  about: "About",
+};
+
+/** 中文菜单标签 */
+const MENU_LABELS_ZH: MenuLabels = {
+  file: "文件",
+  newFile: "新建文件",
+  openFile: "打开文件\u2026",
+  save: "保存",
+  saveAs: "另存为\u2026",
+  edit: "编辑",
+  undo: "撤销",
+  redo: "重做",
+  cut: "剪切",
+  copy: "复制",
+  paste: "粘贴",
+  selectAll: "全选",
+  view: "视图",
+  reload: "重新加载",
+  forceReload: "强制重新加载",
+  toggleDevTools: "切换开发者工具",
+  actualSize: "实际大小",
+  zoomIn: "放大",
+  zoomOut: "缩小",
+  toggleFullScreen: "切换全屏",
+  window: "窗口",
+  minimize: "最小化",
+  close: "关闭",
+  help: "帮助",
+  about: "关于",
+};
+
+/**
+ * 根据语言代码获取对应的菜单标签集
+ * @param lang - 语言代码，"zh" 返回中文标签，其余返回英文标签
+ * @returns MenuLabels 对应语言的菜单标签集合
+ */
+function getMenuLabels(lang: string): MenuLabels {
+  return lang === "zh" ? MENU_LABELS_ZH : MENU_LABELS_EN;
+}
+
+/**
+ * 根据标签集合构建 Electron 应用菜单
+ * @param labels - 菜单标签集合，包含各菜单项的本地化文本
+ * @returns Electron.Menu 构建完成的应用菜单实例
+ */
+function buildAppMenu(labels: MenuLabels): Electron.Menu {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: labels.file,
+      submenu: [
+        {
+          label: labels.newFile,
+          accelerator: "CmdOrCtrl+N",
+          click: () => mainWindow?.webContents.send("menu:new-file"),
+        },
+        {
+          label: labels.openFile,
+          accelerator: "CmdOrCtrl+O",
+          click: () => mainWindow?.webContents.send("menu:open-file"),
+        },
+        { type: "separator" },
+        {
+          label: labels.save,
+          accelerator: "CmdOrCtrl+S",
+          click: () => mainWindow?.webContents.send("menu:save"),
+        },
+        {
+          label: labels.saveAs,
+          accelerator: "CmdOrCtrl+Shift+S",
+          click: () => mainWindow?.webContents.send("menu:save-as"),
+        },
+      ],
+    },
+    {
+      label: labels.edit,
+      submenu: [
+        { label: labels.undo, accelerator: "CmdOrCtrl+Z", role: "undo" },
+        { label: labels.redo, accelerator: "CmdOrCtrl+Shift+Z", role: "redo" },
+        { type: "separator" },
+        { label: labels.cut, accelerator: "CmdOrCtrl+X", role: "cut" },
+        { label: labels.copy, accelerator: "CmdOrCtrl+C", role: "copy" },
+        { label: labels.paste, accelerator: "CmdOrCtrl+V", role: "paste" },
+        { label: labels.selectAll, accelerator: "CmdOrCtrl+A", role: "selectAll" },
+      ],
+    },
+    {
+      label: labels.view,
+      submenu: [
+        { label: labels.reload, accelerator: "CmdOrCtrl+R", role: "reload" },
+        { label: labels.forceReload, accelerator: "CmdOrCtrl+Shift+R", role: "forceReload" },
+        { label: labels.toggleDevTools, accelerator: "CmdOrCtrl+Shift+I", role: "toggleDevTools" },
+        { type: "separator" },
+        { label: labels.actualSize, accelerator: "CmdOrCtrl+0", role: "resetZoom" },
+        { label: labels.zoomIn, accelerator: "CmdOrCtrl+Plus", role: "zoomIn" },
+        { label: labels.zoomOut, accelerator: "CmdOrCtrl+-", role: "zoomOut" },
+        { type: "separator" },
+        { label: labels.toggleFullScreen, accelerator: "F11", role: "togglefullscreen" },
+      ],
+    },
+    {
+      label: labels.window,
+      submenu: [
+        { label: labels.minimize, accelerator: "CmdOrCtrl+M", role: "minimize" },
+        { label: labels.close, accelerator: "CmdOrCtrl+W", role: "close" },
+      ],
+    },
+    {
+      label: labels.help,
+      submenu: [
+        {
+          label: labels.about,
+          click: () => {
+            /* 暂不实现 */
+          },
+        },
+      ],
+    },
+  ];
+
+  return Menu.buildFromTemplate(template);
+}
 
 export interface VaultNode {
   name: string;
@@ -414,6 +594,19 @@ ipcMain.handle("vault:set-last", async (_event, vaultPath: string) => {
   return { ok: true };
 });
 
+// -- 菜单语言切换 IPC handler --------------------------------------------------
+
+/**
+ * 处理菜单语言切换请求，根据传入语言代码重建应用菜单
+ * @param _event - IPC 事件对象（未使用）
+ * @param lang - 语言代码，"zh" 为中文，其余为英文
+ * @returns {ok: boolean} 操作结果
+ */
+ipcMain.handle("menu:set-language", (_event, lang: string) => {
+  Menu.setApplicationMenu(buildAppMenu(getMenuLabels(lang)));
+  return { ok: true };
+});
+
 app.whenReady().then(() => {
   // nexus-vault://vault/<rel> → read from activeVault/<rel>. Path is validated
   // so requests cannot escape the vault (same rule as the IPC handlers).
@@ -435,6 +628,9 @@ app.whenReady().then(() => {
     }
   });
   createWindow();
+
+  // 设置初始应用菜单（默认英文）
+  Menu.setApplicationMenu(buildAppMenu(getMenuLabels("en")));
 });
 
 app.on("window-all-closed", () => {

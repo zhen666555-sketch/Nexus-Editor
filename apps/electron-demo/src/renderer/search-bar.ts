@@ -1,6 +1,65 @@
 import type { EditorAPI } from "@floatboat/nexus-core";
 import { findSearchMatches, replaceAllMatches } from "@floatboat/nexus-plugin-search";
 
+/**
+ * 搜索栏国际化标签接口
+ * @property find - 查找输入框占位文本
+ * @property replace - 替换输入框占位文本
+ * @property previousMatch - 上一个匹配按钮提示
+ * @property nextMatch - 下一个匹配按钮提示
+ * @property replaceBtn - 替换按钮文本
+ * @property replaceAllBtn - 全部替换按钮文本
+ * @property replaceAllTitle - 全部替换按钮提示
+ * @property close - 关闭按钮提示
+ * @property noResults - 无匹配结果文本
+ */
+interface SearchBarLabels {
+  find: string;
+  replace: string;
+  previousMatch: string;
+  nextMatch: string;
+  replaceBtn: string;
+  replaceAllBtn: string;
+  replaceAllTitle: string;
+  close: string;
+  noResults: string;
+}
+
+/** 英文标签预设 */
+const SEARCH_LABELS_EN: SearchBarLabels = {
+  find: "Find...",
+  replace: "Replace...",
+  previousMatch: "Previous match",
+  nextMatch: "Next match",
+  replaceBtn: "Replace",
+  replaceAllBtn: "All",
+  replaceAllTitle: "Replace all",
+  close: "Close (Esc)",
+  noResults: "0 results",
+};
+
+/** 中文标签预设 */
+const SEARCH_LABELS_ZH: SearchBarLabels = {
+  find: "查找...",
+  replace: "替换...",
+  previousMatch: "上一个匹配",
+  nextMatch: "下一个匹配",
+  replaceBtn: "替换",
+  replaceAllBtn: "全部",
+  replaceAllTitle: "全部替换",
+  close: "关闭 (Esc)",
+  noResults: "0 个结果",
+};
+
+/**
+ * 根据语言代码获取对应的搜索栏标签
+ * @param lang - 语言代码，如 "zh"、"en"，默认返回英文
+ * @returns 对应语言的 SearchBarLabels 对象
+ */
+function getSearchLabels(lang: string): SearchBarLabels {
+  return lang === "zh" ? SEARCH_LABELS_ZH : SEARCH_LABELS_EN;
+}
+
 export interface SearchBar {
   element: HTMLElement;
   open(): void;
@@ -62,7 +121,14 @@ const CLOSE_BTN_STYLES = `
   line-height: 1;
 `;
 
-export function createSearchBar(editor: EditorAPI): SearchBar {
+/**
+ * 创建搜索栏组件，支持查找、替换、导航匹配项等功能
+ * @param editor - 编辑器 API 实例，用于操作文档和选区
+ * @param lang - 界面语言代码，默认 "en"（英文），支持 "zh"（中文）
+ * @returns SearchBar 对象，包含 DOM 元素及 open/close/isOpen/destroy 方法
+ */
+export function createSearchBar(editor: EditorAPI, lang: string = "en"): SearchBar {
+  const l = getSearchLabels(lang);
   const bar = document.createElement("div");
   bar.className = "nexus-search-bar";
   bar.style.cssText = BAR_STYLES;
@@ -70,34 +136,34 @@ export function createSearchBar(editor: EditorAPI): SearchBar {
   // Find input
   const findInput = document.createElement("input");
   findInput.type = "text";
-  findInput.placeholder = "Find...";
+  findInput.placeholder = l.find;
   findInput.style.cssText = INPUT_STYLES;
 
   // Replace input
   const replaceInput = document.createElement("input");
   replaceInput.type = "text";
-  replaceInput.placeholder = "Replace...";
+  replaceInput.placeholder = l.replace;
   replaceInput.style.cssText = INPUT_STYLES;
   replaceInput.style.width = "160px";
 
   // Buttons
   const prevBtn = document.createElement("button");
   prevBtn.textContent = "\u2191"; // ↑
-  prevBtn.title = "Previous match";
+  prevBtn.title = l.previousMatch;
   prevBtn.style.cssText = BTN_STYLES;
 
   const nextBtn = document.createElement("button");
   nextBtn.textContent = "\u2193"; // ↓
-  nextBtn.title = "Next match";
+  nextBtn.title = l.nextMatch;
   nextBtn.style.cssText = BTN_STYLES;
 
   const replaceBtn = document.createElement("button");
-  replaceBtn.textContent = "Replace";
+  replaceBtn.textContent = l.replaceBtn;
   replaceBtn.style.cssText = BTN_STYLES;
 
   const replaceAllBtn = document.createElement("button");
-  replaceAllBtn.textContent = "All";
-  replaceAllBtn.title = "Replace all";
+  replaceAllBtn.textContent = l.replaceAllBtn;
+  replaceAllBtn.title = l.replaceAllTitle;
   replaceAllBtn.style.cssText = BTN_STYLES;
 
   // Count label
@@ -107,7 +173,7 @@ export function createSearchBar(editor: EditorAPI): SearchBar {
   // Close
   const closeBtn = document.createElement("button");
   closeBtn.innerHTML = "&times;";
-  closeBtn.title = "Close (Esc)";
+  closeBtn.title = l.close;
   closeBtn.style.cssText = CLOSE_BTN_STYLES;
 
   const spacer = document.createElement("div");
@@ -132,7 +198,7 @@ export function createSearchBar(editor: EditorAPI): SearchBar {
     matches = findSearchMatches(doc, query);
     if (matches.length === 0) {
       currentIdx = -1;
-      countLabel.textContent = "0 results";
+      countLabel.textContent = l.noResults;
     } else {
       // Find nearest match to current cursor
       const { anchor } = editor.getSelection();

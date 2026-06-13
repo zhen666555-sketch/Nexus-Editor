@@ -1,13 +1,14 @@
 import {
   createEditor,
   createWikilinksPlugin,
+  zhLocale,
   type EditorAPI,
   type LivePreviewRenderContext,
 } from "@floatboat/nexus-core";
 import { createGfmPreset } from "@floatboat/nexus-preset-gfm";
 import { createHistoryPlugin } from "@floatboat/nexus-plugin-history";
-import { createToolbarPlugin, createToolbarUI, type ToolbarUI } from "@floatboat/nexus-plugin-toolbar";
-import { createSearchPlugin } from "@floatboat/nexus-plugin-search";
+import { createToolbarPlugin, createToolbarUI, zhToolbarLabels, type ToolbarUI } from "@floatboat/nexus-plugin-toolbar";
+import { createSearchPlugin, zhSearchLabels } from "@floatboat/nexus-plugin-search";
 import { createSlashMenuUI, type SlashMenuUI } from "@floatboat/nexus-plugin-slash";
 import type { AppState } from "./state";
 import { type EditorSettings, settingsToTheme } from "./settings";
@@ -79,6 +80,8 @@ export interface EditorShell {
   /** The floating slash-command menu mounted on document.body. */
   slashMenu: SlashMenuUI;
   applySettings(settings: EditorSettings): void;
+  /** 销毁当前 shell 并用新设置重建，返回新的 shell。 */
+  rebuild(settings: EditorSettings): EditorShell;
   loadDocument(content: string): void;
   destroy(): void;
 }
@@ -93,6 +96,9 @@ export function createEditorShell(options: EditorShellOptions): EditorShell {
     resolveWikilink,
     suggestWikilinks,
   } = options;
+
+  // 当前语言状态（可被 applySettings 更新）
+  let currentLang = settings.language;
 
   // Forward ref so the image renderer (built BEFORE createEditor returns)
   // can dispatch selection changes through the editor API after it exists.
@@ -110,9 +116,12 @@ export function createEditorShell(options: EditorShellOptions): EditorShell {
   // via the Lezer→mdast adapter — no off-thread parse, no remark/micromark
   // hot path.
 
+  const isZh = currentLang === "zh";
+
   const editor = createEditor({
     container,
     initialValue: state.content,
+    locale: isZh ? zhLocale : undefined,
     // Debounce the onChange pipeline — each keystroke would otherwise trigger
     // a full mdast walk AND linkIndex.updateFile (which rebuilds all reverse
     // edges across the vault). 150ms is imperceptible for typing UX but
@@ -122,7 +131,7 @@ export function createEditorShell(options: EditorShellOptions): EditorShell {
       createGfmPreset(),
       createHistoryPlugin(),
       createToolbarPlugin(),
-      createSearchPlugin(),
+      createSearchPlugin({ labels: isZh ? zhSearchLabels : undefined }),
       wikilinksPlugin,
     ],
     livePreview: settings.livePreview
@@ -313,7 +322,7 @@ export function createEditorShell(options: EditorShellOptions): EditorShell {
 
   editorRef.current = editor;
 
-  const toolbar = createToolbarUI(editor);
+  const toolbar = createToolbarUI(editor, { labels: isZh ? zhToolbarLabels : undefined });
   container.insertBefore(toolbar.element, container.firstChild);
 
   // The slash menu owns its own DOM root mounted on document.body so
@@ -327,6 +336,27 @@ export function createEditorShell(options: EditorShellOptions): EditorShell {
     slashMenu,
     applySettings(next: EditorSettings) {
       editor.setTheme(settingsToTheme(next));
+      // 语言切换需要重建整个 shell（search/toolbar/locale 都需要更新）
+      if (next.language !== currentLang) {
+        // rebuild 由 app.ts 调用，因为需要替换 shell 引用
+        return;
+      }
+    },
+    rebuild(next: EditorSettings) {
+      // 保存当前文档内容
+      const content = state.content;
+      // 销毁旧 shell
+      slashMenu.destroy();
+      toolbar.destroy();
+      editor.destroy();
+      // 用新设置重建
+      const newShell = createEditorShell({
+        ...options,
+        settings: next,
+      });
+      // 恢复文档内容
+      newShell.loadDocument(content);
+      return newShell;
     },
     loadDocument(content: string) {
       // Load from disk is NOT a user edit — use silent mode to skip the

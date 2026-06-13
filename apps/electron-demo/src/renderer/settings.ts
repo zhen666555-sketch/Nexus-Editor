@@ -12,6 +12,8 @@ export interface EditorSettings {
   indentGuides: boolean;
   lineNumbers: boolean;
   livePreview: boolean;
+  /** "en" | "zh" */
+  language: "en" | "zh";
 }
 
 const STORAGE_KEY = "nexus-editor-settings";
@@ -28,6 +30,7 @@ export function defaultSettings(): EditorSettings {
     indentGuides: false,
     lineNumbers: true,
     livePreview: true,
+    language: "en",
   };
 }
 
@@ -125,7 +128,100 @@ interface SettingsPanelResult {
   destroy(): void;
 }
 
-type OnChange = (settings: EditorSettings) => void;
+/** 设置面板标签 */
+interface SettingsLabels {
+  title: string;
+  close: string;
+  display: string;
+  colorScheme: string;
+  colorSchemeDesc: string;
+  language: string;
+  languageDesc: string;
+  lineNumbers: string;
+  lineNumbersDesc: string;
+  livePreview: string;
+  livePreviewDesc: string;
+  indentGuides: string;
+  indentGuidesDesc: string;
+  contentMaxWidth: string;
+  contentMaxWidthDesc: string;
+  textDirection: string;
+  textDirectionDesc: string;
+  font: string;
+  fontSize: string;
+  fontSizeDesc: string;
+  bodyFont: string;
+  bodyFontDesc: string;
+  codeFont: string;
+  codeFontDesc: string;
+  behavior: string;
+  tabSize: string;
+  tabSizeDesc: string;
+}
+
+const SETTINGS_LABELS_EN: SettingsLabels = {
+  title: "Settings",
+  close: "Close",
+  display: "Display",
+  colorScheme: "Color scheme",
+  colorSchemeDesc: "Light or dark theme",
+  language: "Language",
+  languageDesc: "Editor interface language",
+  lineNumbers: "Line numbers",
+  lineNumbersDesc: "Show line numbers in the gutter",
+  livePreview: "Live preview",
+  livePreviewDesc: "Render markdown in real-time",
+  indentGuides: "Indent guides",
+  indentGuidesDesc: "Show indentation guide lines",
+  contentMaxWidth: "Content max width",
+  contentMaxWidthDesc: "Limit line width for readability (e.g. 720px)",
+  textDirection: "Text direction",
+  textDirectionDesc: "Left-to-right or right-to-left",
+  font: "Font",
+  fontSize: "Font size",
+  fontSizeDesc: "Editor text size in pixels",
+  bodyFont: "Body font",
+  bodyFontDesc: "Font for prose content",
+  codeFont: "Code font",
+  codeFontDesc: "Monospace font for code blocks",
+  behavior: "Behavior",
+  tabSize: "Tab size",
+  tabSizeDesc: "Number of spaces per tab",
+};
+
+const SETTINGS_LABELS_ZH: SettingsLabels = {
+  title: "设置",
+  close: "关闭",
+  display: "显示",
+  colorScheme: "配色方案",
+  colorSchemeDesc: "浅色或深色主题",
+  language: "语言",
+  languageDesc: "编辑器界面语言",
+  lineNumbers: "行号",
+  lineNumbersDesc: "在行号槽中显示行号",
+  livePreview: "实时预览",
+  livePreviewDesc: "实时渲染 Markdown",
+  indentGuides: "缩进参考线",
+  indentGuidesDesc: "显示缩进参考线",
+  contentMaxWidth: "内容最大宽度",
+  contentMaxWidthDesc: "限制行宽以提高可读性（如 720px）",
+  textDirection: "文本方向",
+  textDirectionDesc: "从左到右或从右到左",
+  font: "字体",
+  fontSize: "字体大小",
+  fontSizeDesc: "编辑器文字大小（像素）",
+  bodyFont: "正文字体",
+  bodyFontDesc: "正文内容字体",
+  codeFont: "代码字体",
+  codeFontDesc: "代码块等宽字体",
+  behavior: "行为",
+  tabSize: "制表符宽度",
+  tabSizeDesc: "每个制表符的空格数",
+};
+
+function getSettingsLabels(lang: string): SettingsLabels {
+  return lang === "zh" ? SETTINGS_LABELS_ZH : SETTINGS_LABELS_EN;
+}
 
 function createToggle(value: boolean, onChange: (v: boolean) => void): HTMLElement {
   const btn = document.createElement("button");
@@ -241,7 +337,12 @@ function sectionTitle(text: string): HTMLElement {
   return el;
 }
 
+/** 设置变更回调类型 */
+type OnChange = (settings: EditorSettings) => void;
+
 export function createSettingsPanel(settings: EditorSettings, onChange: OnChange): SettingsPanelResult {
+  const l = getSettingsLabels(settings.language);
+
   const backdrop = document.createElement("div");
   backdrop.style.cssText = PANEL_STYLES;
 
@@ -252,11 +353,11 @@ export function createSettingsPanel(settings: EditorSettings, onChange: OnChange
   const header = document.createElement("div");
   header.style.cssText = HEADER_STYLES;
   const titleEl = document.createElement("span");
-  titleEl.textContent = "Settings";
+  titleEl.textContent = l.title;
   const closeBtn = document.createElement("button");
   closeBtn.style.cssText = CLOSE_BTN_STYLES;
   closeBtn.innerHTML = "&times;";
-  closeBtn.title = "Close";
+  closeBtn.title = l.close;
   header.append(titleEl, closeBtn);
 
   // Body
@@ -267,23 +368,24 @@ export function createSettingsPanel(settings: EditorSettings, onChange: OnChange
   const emit = () => { saveSettings(s); onChange(s); };
 
   // -- Display section --
-  body.appendChild(sectionTitle("Display"));
-  body.appendChild(row("Color scheme", "Light or dark theme", createSelect(["light", "dark"], s.colorScheme, (v) => { s.colorScheme = v as "light" | "dark"; emit(); })));
-  body.appendChild(row("Line numbers", "Show line numbers in the gutter", createToggle(s.lineNumbers, (v) => { s.lineNumbers = v; emit(); })));
-  body.appendChild(row("Live preview", "Render markdown in real-time", createToggle(s.livePreview, (v) => { s.livePreview = v; emit(); })));
-  body.appendChild(row("Indent guides", "Show indentation guide lines", createToggle(s.indentGuides, (v) => { s.indentGuides = v; emit(); })));
-  body.appendChild(row("Content max width", "Limit line width for readability (e.g. 720px)", createTextInput(s.contentMaxWidth, "e.g. 720px", (v) => { s.contentMaxWidth = v; emit(); })));
-  body.appendChild(row("Text direction", "Left-to-right or right-to-left", createSelect(["ltr", "rtl"], s.direction, (v) => { s.direction = v as "ltr" | "rtl"; emit(); })));
+  body.appendChild(sectionTitle(l.display));
+  body.appendChild(row(l.colorScheme, l.colorSchemeDesc, createSelect(["light", "dark"], s.colorScheme, (v) => { s.colorScheme = v as "light" | "dark"; emit(); })));
+  body.appendChild(row(l.language, l.languageDesc, createSelect(["en", "zh"], s.language, (v) => { s.language = v as "en" | "zh"; emit(); })));
+  body.appendChild(row(l.lineNumbers, l.lineNumbersDesc, createToggle(s.lineNumbers, (v) => { s.lineNumbers = v; emit(); })));
+  body.appendChild(row(l.livePreview, l.livePreviewDesc, createToggle(s.livePreview, (v) => { s.livePreview = v; emit(); })));
+  body.appendChild(row(l.indentGuides, l.indentGuidesDesc, createToggle(s.indentGuides, (v) => { s.indentGuides = v; emit(); })));
+  body.appendChild(row(l.contentMaxWidth, l.contentMaxWidthDesc, createTextInput(s.contentMaxWidth, "e.g. 720px", (v) => { s.contentMaxWidth = v; emit(); })));
+  body.appendChild(row(l.textDirection, l.textDirectionDesc, createSelect(["ltr", "rtl"], s.direction, (v) => { s.direction = v as "ltr" | "rtl"; emit(); })));
 
   // -- Font section --
-  body.appendChild(sectionTitle("Font"));
-  body.appendChild(row("Font size", "Editor text size in pixels", createNumberInput(s.fontSize, 10, 28, 1, (v) => { s.fontSize = v; emit(); })));
-  body.appendChild(row("Body font", "Font for prose content", createTextInput(s.fontFamily, "system-ui, sans-serif", (v) => { s.fontFamily = v; emit(); })));
-  body.appendChild(row("Code font", "Monospace font for code blocks", createTextInput(s.fontFamilyMono, "ui-monospace, monospace", (v) => { s.fontFamilyMono = v; emit(); })));
+  body.appendChild(sectionTitle(l.font));
+  body.appendChild(row(l.fontSize, l.fontSizeDesc, createNumberInput(s.fontSize, 10, 28, 1, (v) => { s.fontSize = v; emit(); })));
+  body.appendChild(row(l.bodyFont, l.bodyFontDesc, createTextInput(s.fontFamily, "system-ui, sans-serif", (v) => { s.fontFamily = v; emit(); })));
+  body.appendChild(row(l.codeFont, l.codeFontDesc, createTextInput(s.fontFamilyMono, "ui-monospace, monospace", (v) => { s.fontFamilyMono = v; emit(); })));
 
   // -- Behavior section --
-  body.appendChild(sectionTitle("Behavior"));
-  body.appendChild(row("Tab size", "Number of spaces per tab", createNumberInput(s.tabSize, 1, 8, 1, (v) => { s.tabSize = v; emit(); })));
+  body.appendChild(sectionTitle(l.behavior));
+  body.appendChild(row(l.tabSize, l.tabSizeDesc, createNumberInput(s.tabSize, 1, 8, 1, (v) => { s.tabSize = v; emit(); })));
 
   dialog.append(header, body);
   backdrop.appendChild(dialog);

@@ -6,6 +6,35 @@ export interface OutlinePanel {
   destroy(): void;
 }
 
+/** 大纲面板标签接口，定义所有可国际化的文本 */
+interface OutlinePanelLabels {
+  /** 面板标题 */
+  title: string;
+  /** 无标题时的提示文本 */
+  noHeadings: string;
+}
+
+/** 英文标签预设 */
+const OUTLINE_LABELS_EN: OutlinePanelLabels = {
+  title: "Outline",
+  noHeadings: "No headings",
+};
+
+/** 中文标签预设 */
+const OUTLINE_LABELS_ZH: OutlinePanelLabels = {
+  title: "大纲",
+  noHeadings: "无标题",
+};
+
+/**
+ * 根据语言代码获取大纲面板标签
+ * @param lang - 语言代码，如 "en"、"zh"
+ * @returns 对应语言的标签对象
+ */
+function getOutlineLabels(lang: string): OutlinePanelLabels {
+  return lang === "zh" ? OUTLINE_LABELS_ZH : OUTLINE_LABELS_EN;
+}
+
 const PANEL_STYLES = `
   width: 220px;
   flex-shrink: 0;
@@ -60,14 +89,22 @@ const EMPTY_STYLES = `
   font-style: italic;
 `;
 
-export function createOutlinePanel(editor: EditorAPI): OutlinePanel {
+/**
+ * 创建大纲面板
+ * @param editor - 编辑器 API 实例，用于获取目录和监听变更
+ * @param lang - 语言代码，默认 "en"，支持 "zh" 中文
+ * @returns OutlinePanel 实例，包含 DOM 元素、更新和销毁方法
+ */
+export function createOutlinePanel(editor: EditorAPI, lang: string = "en"): OutlinePanel {
+  const l = getOutlineLabels(lang);
+
   const panel = document.createElement("div");
   panel.className = "nexus-outline-panel";
   panel.style.cssText = PANEL_STYLES;
 
   const header = document.createElement("div");
   header.style.cssText = HEADER_STYLES;
-  header.textContent = "Outline";
+  header.textContent = l.title;
 
   const list = document.createElement("div");
   list.style.cssText = LIST_STYLES;
@@ -80,7 +117,7 @@ export function createOutlinePanel(editor: EditorAPI): OutlinePanel {
     if (entries.length === 0) {
       const empty = document.createElement("div");
       empty.style.cssText = EMPTY_STYLES;
-      empty.textContent = "No headings";
+      empty.textContent = l.noHeadings;
       list.appendChild(empty);
       return;
     }

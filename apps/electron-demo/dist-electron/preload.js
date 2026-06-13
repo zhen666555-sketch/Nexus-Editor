@@ -69,6 +69,14 @@ var bridge = {
   saveFileAs(content) {
     return import_electron.ipcRenderer.invoke("demo:save-file-as", content);
   },
+  /**
+   * 切换菜单栏显示语言
+   * @param lang - 语言代码，"en" 为英文，"zh" 为中文
+   * @returns Promise<void> 操作完成或抛出异常
+   */
+  setMenuLanguage(lang) {
+    return import_electron.ipcRenderer.invoke("menu:set-language", lang);
+  },
   vault: vaultBridge
 };
 import_electron.contextBridge.exposeInMainWorld("nexusDemo", bridge);

@@ -309,12 +309,15 @@ export class EditableTableWidget extends WidgetType {
     private tableFrom: number,
     private source: string,
     private viewRef: { current: EditorView | null },
-    private labels: Required<LivePreviewLabels>
+    private labels: Required<LivePreviewLabels>,
+    private labelsVersion: number
   ) { super(); }
 
   eq(other: EditableTableWidget): boolean {
     if (this.editing) return true;
-    return this.source === other.source;
+    if (this.source !== other.source) return false;
+    // locale 变化时 labelsVersion 递增，触发 widget 重建
+    return this.labelsVersion === other.labelsVersion;
   }
 
   ignoreEvent(): boolean { return true; }

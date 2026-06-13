@@ -1,3 +1,84 @@
+/** 仓库面板国际化标签接口，定义所有可翻译的 UI 文本 */
+interface VaultPanelLabels {
+  /** 面板标题 */
+  title: string;
+  /** 打开仓库按钮提示 */
+  openVault: string;
+  /** 根目录新建文件按钮提示 */
+  newFile: string;
+  /** 根目录新建文件夹按钮提示 */
+  newFolder: string;
+  /** 未打开仓库时的空状态提示 */
+  noVaultOpened: string;
+  /** 仓库为空时的提示 */
+  vaultEmpty: string;
+  /** 右键菜单：在此新建文件 */
+  newFileHere: string;
+  /** 右键菜单：在此新建文件夹 */
+  newFolderHere: string;
+  /** 右键菜单：打开文件 */
+  open: string;
+  /** 右键菜单：在相同文件夹新建文件 */
+  newFileInSameFolder: string;
+  /** 右键菜单：重命名 */
+  rename: string;
+  /** 右键菜单：删除 */
+  delete: string;
+  /** 移至回收站状态消息，{name} 为占位符 */
+  movedToTrash: string;
+  /** 新建文件默认名称 */
+  untitledMd: string;
+  /** 新建文件夹默认名称 */
+  newFolderDefault: string;
+}
+
+/** 英文标签预设 */
+const VAULT_LABELS_EN: VaultPanelLabels = {
+  title: "Vault",
+  openVault: "Open vault\u2026",
+  newFile: "New file at root",
+  newFolder: "New folder at root",
+  noVaultOpened: "No vault opened. Click \uD83D\uDCC1 to choose a folder.",
+  vaultEmpty: "Vault is empty. Click + to create a note.",
+  newFileHere: "New file here",
+  newFolderHere: "New folder here",
+  open: "Open",
+  newFileInSameFolder: "New file in same folder",
+  rename: "Rename",
+  delete: "Delete",
+  movedToTrash: "Moved {name} to Trash",
+  untitledMd: "untitled.md",
+  newFolderDefault: "new-folder",
+};
+
+/** 中文标签预设 */
+const VAULT_LABELS_ZH: VaultPanelLabels = {
+  title: "仓库",
+  openVault: "打开仓库\u2026",
+  newFile: "在根目录新建文件",
+  newFolder: "在根目录新建文件夹",
+  noVaultOpened: "未打开仓库。点击 \uD83D\uDCC1 选择文件夹。",
+  vaultEmpty: "仓库为空。点击 + 创建笔记。",
+  newFileHere: "在此新建文件",
+  newFolderHere: "在此新建文件夹",
+  open: "打开",
+  newFileInSameFolder: "在相同文件夹新建文件",
+  rename: "重命名",
+  delete: "删除",
+  movedToTrash: "已将 {name} 移至回收站",
+  untitledMd: "未命名.md",
+  newFolderDefault: "新建文件夹",
+};
+
+/**
+ * 根据语言代码获取对应的仓库面板标签
+ * @param lang - 语言代码，如 "zh" 或 "en"
+ * @returns 对应语言的 VaultPanelLabels 对象
+ */
+function getVaultLabels(lang: string): VaultPanelLabels {
+  return lang === "zh" ? VAULT_LABELS_ZH : VAULT_LABELS_EN;
+}
+
 export interface VaultPanelCallbacks {
   onOpenFile(filePath: string): void;
   onError(message: string): void;
@@ -182,7 +263,16 @@ function fileIcon(): string {
   return "\u00B7"; // middle dot
 }
 
-export function createVaultPanel(callbacks: VaultPanelCallbacks): VaultPanel {
+/**
+ * 创建仓库面板组件
+ * @param callbacks - 回调接口，包含文件打开、错误和状态消息的处理函数
+ * @param lang - 语言代码，默认 "en"，支持 "zh" 中文
+ * @returns VaultPanel 对象，包含面板元素和相关操作方法
+ */
+export function createVaultPanel(callbacks: VaultPanelCallbacks, lang: string = "en"): VaultPanel {
+  /** 获取当前语言的标签集 */
+  const l = getVaultLabels(lang);
+
   const panel = document.createElement("div");
   panel.className = "nexus-vault-panel";
   panel.style.cssText = PANEL_STYLES;
@@ -192,26 +282,26 @@ export function createVaultPanel(callbacks: VaultPanelCallbacks): VaultPanel {
 
   const title = document.createElement("div");
   title.style.cssText = HEADER_TITLE_STYLES;
-  title.textContent = "Vault";
+  title.textContent = l.title;
 
   const openBtn = document.createElement("button");
   openBtn.type = "button";
   openBtn.style.cssText = ICON_BTN_STYLES;
   openBtn.textContent = "\uD83D\uDCC1"; // 📁
-  openBtn.title = "Open vault…";
+  openBtn.title = l.openVault;
 
   const newFileBtn = document.createElement("button");
   newFileBtn.type = "button";
   newFileBtn.style.cssText = ICON_BTN_STYLES;
   newFileBtn.textContent = "\u002B"; // +
-  newFileBtn.title = "New file at root";
+  newFileBtn.title = l.newFile;
   newFileBtn.disabled = true;
 
   const newFolderBtn = document.createElement("button");
   newFolderBtn.type = "button";
   newFolderBtn.style.cssText = ICON_BTN_STYLES;
   newFolderBtn.textContent = "\uD83D\uDCC2"; // 📂
-  newFolderBtn.title = "New folder at root";
+  newFolderBtn.title = l.newFolder;
   newFolderBtn.disabled = true;
 
   header.append(title, newFileBtn, newFolderBtn, openBtn);
@@ -313,11 +403,11 @@ export function createVaultPanel(callbacks: VaultPanelCallbacks): VaultPanel {
   function renderTree(): void {
     tree.innerHTML = "";
     if (!vaultPath) {
-      renderEmpty("No vault opened. Click 📁 to choose a folder.");
+      renderEmpty(l.noVaultOpened);
       return;
     }
     if (currentTree.length === 0) {
-      renderEmpty("Vault is empty. Click + to create a note.");
+      renderEmpty(l.vaultEmpty);
       return;
     }
     for (const node of currentTree) renderNode(node, 0, tree);
@@ -379,26 +469,26 @@ export function createVaultPanel(callbacks: VaultPanelCallbacks): VaultPanel {
 
     if (node.kind === "directory") {
       items.push({
-        label: "New file here",
+        label: l.newFileHere,
         onClick: () => createFilePrompt(node.path),
       });
       items.push({
-        label: "New folder here",
+        label: l.newFolderHere,
         onClick: () => createFolderPrompt(node.path),
       });
     } else {
       items.push({
-        label: "Open",
+        label: l.open,
         onClick: () => callbacks.onOpenFile(node.path),
       });
       items.push({
-        label: "New file in same folder",
+        label: l.newFileInSameFolder,
         onClick: () => createFilePrompt(parentDir),
       });
     }
 
     items.push({
-      label: "Rename",
+      label: l.rename,
       onClick: () => {
         const row = tree.querySelector<HTMLElement>(`[data-path="${cssEscape(node.path)}"]`);
         const label = row?.querySelector<HTMLElement>("span:last-child");
@@ -407,7 +497,7 @@ export function createVaultPanel(callbacks: VaultPanelCallbacks): VaultPanel {
     });
 
     items.push({
-      label: "Delete",
+      label: l.delete,
       destructive: true,
       onClick: () => deleteNode(node),
     });
@@ -480,7 +570,7 @@ export function createVaultPanel(callbacks: VaultPanelCallbacks): VaultPanel {
 
   function createFilePrompt(parentDir: string): void {
     inlineInputRow({
-      defaultValue: "untitled.md",
+      defaultValue: l.untitledMd,
       selectExt: true,
       iconChar: fileIcon(),
       onCommit: async (name) => {
@@ -493,7 +583,7 @@ export function createVaultPanel(callbacks: VaultPanelCallbacks): VaultPanel {
 
   function createFolderPrompt(parentDir: string): void {
     inlineInputRow({
-      defaultValue: "new-folder",
+      defaultValue: l.newFolderDefault,
       selectExt: false,
       iconChar: folderIcon(true),
       onCommit: async (name) => {
@@ -508,7 +598,7 @@ export function createVaultPanel(callbacks: VaultPanelCallbacks): VaultPanel {
     // destructive-styled and requires an explicit click, so we proceed directly.
     try {
       await window.nexusDemo.vault.delete(node.path);
-      callbacks.onStatus(`Moved ${node.name} to Trash`);
+      callbacks.onStatus(l.movedToTrash.replace("{name}", node.name));
       if (node.kind === "file" && activeFile === node.path) {
         activeFile = null;
       }
@@ -530,7 +620,7 @@ export function createVaultPanel(callbacks: VaultPanelCallbacks): VaultPanel {
 
   async function openVault(nextPath: string): Promise<void> {
     vaultPath = nextPath;
-    title.textContent = nextPath.split(/[\\/]/).pop() || "Vault";
+    title.textContent = nextPath.split(/[\\/]/).pop() || l.title;
     title.title = nextPath;
     syncButtonEnabled();
     collapsed.clear();

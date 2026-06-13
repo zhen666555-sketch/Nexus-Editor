@@ -36,6 +36,8 @@ export interface DemoBridge {
   openFile(): Promise<DemoFileHandle | null>;
   saveFile(path: string, content: string): Promise<{ path: string }>;
   saveFileAs(content: string): Promise<{ path: string } | null>;
+  /** 切换菜单栏语言（"en" | "zh"），返回操作结果 */
+  setMenuLanguage(lang: string): Promise<void>;
   vault: VaultBridge;
 }
 
@@ -91,6 +93,14 @@ const bridge: DemoBridge = {
   },
   saveFileAs(content: string) {
     return ipcRenderer.invoke("demo:save-file-as", content);
+  },
+  /**
+   * 切换菜单栏显示语言
+   * @param lang - 语言代码，"en" 为英文，"zh" 为中文
+   * @returns Promise<void> 操作完成或抛出异常
+   */
+  setMenuLanguage(lang: string) {
+    return ipcRenderer.invoke("menu:set-language", lang);
   },
   vault: vaultBridge,
 };

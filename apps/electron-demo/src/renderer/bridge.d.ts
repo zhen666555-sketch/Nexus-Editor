@@ -35,6 +35,8 @@ interface DemoBridge {
   saveFile(path: string, content: string): Promise<{ path: string }>;
   saveFileAs(content: string): Promise<{ path: string } | null>;
   vault: VaultBridge;
+  /** 切换 Electron 菜单栏语言（"en" | "zh"） */
+  setMenuLanguage(lang: string): Promise<void>;
 }
 
 interface Window {

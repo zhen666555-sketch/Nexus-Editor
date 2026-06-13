@@ -75,6 +75,23 @@ const DEFAULT_LABELS: SearchPluginLabels = {
   close: "Close"
 };
 
+/** 中文搜索面板标签预设。 */
+export const zhSearchLabels: SearchPluginLabels = {
+  find: "查找",
+  replace: "替换",
+  showReplace: "显示替换",
+  hideReplace: "隐藏替换",
+  next: "下一个",
+  previous: "上一个",
+  all: "全部",
+  matchCase: "区分大小写",
+  regexp: "正则表达式",
+  byWord: "全词匹配",
+  replaceNext: "替换",
+  replaceAll: "全部替换",
+  close: "关闭"
+};
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

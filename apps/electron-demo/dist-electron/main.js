@@ -38,6 +38,137 @@ import_electron.protocol.registerSchemesAsPrivileged([
   }
 ]);
 var mainWindow = null;
+var MENU_LABELS_EN = {
+  file: "File",
+  newFile: "New File",
+  openFile: "Open File\u2026",
+  save: "Save",
+  saveAs: "Save As\u2026",
+  edit: "Edit",
+  undo: "Undo",
+  redo: "Redo",
+  cut: "Cut",
+  copy: "Copy",
+  paste: "Paste",
+  selectAll: "Select All",
+  view: "View",
+  reload: "Reload",
+  forceReload: "Force Reload",
+  toggleDevTools: "Toggle Developer Tools",
+  actualSize: "Actual Size",
+  zoomIn: "Zoom In",
+  zoomOut: "Zoom Out",
+  toggleFullScreen: "Toggle Full Screen",
+  window: "Window",
+  minimize: "Minimize",
+  close: "Close",
+  help: "Help",
+  about: "About"
+};
+var MENU_LABELS_ZH = {
+  file: "\u6587\u4EF6",
+  newFile: "\u65B0\u5EFA\u6587\u4EF6",
+  openFile: "\u6253\u5F00\u6587\u4EF6\u2026",
+  save: "\u4FDD\u5B58",
+  saveAs: "\u53E6\u5B58\u4E3A\u2026",
+  edit: "\u7F16\u8F91",
+  undo: "\u64A4\u9500",
+  redo: "\u91CD\u505A",
+  cut: "\u526A\u5207",
+  copy: "\u590D\u5236",
+  paste: "\u7C98\u8D34",
+  selectAll: "\u5168\u9009",
+  view: "\u89C6\u56FE",
+  reload: "\u91CD\u65B0\u52A0\u8F7D",
+  forceReload: "\u5F3A\u5236\u91CD\u65B0\u52A0\u8F7D",
+  toggleDevTools: "\u5207\u6362\u5F00\u53D1\u8005\u5DE5\u5177",
+  actualSize: "\u5B9E\u9645\u5927\u5C0F",
+  zoomIn: "\u653E\u5927",
+  zoomOut: "\u7F29\u5C0F",
+  toggleFullScreen: "\u5207\u6362\u5168\u5C4F",
+  window: "\u7A97\u53E3",
+  minimize: "\u6700\u5C0F\u5316",
+  close: "\u5173\u95ED",
+  help: "\u5E2E\u52A9",
+  about: "\u5173\u4E8E"
+};
+function getMenuLabels(lang) {
+  return lang === "zh" ? MENU_LABELS_ZH : MENU_LABELS_EN;
+}
+function buildAppMenu(labels) {
+  const template = [
+    {
+      label: labels.file,
+      submenu: [
+        {
+          label: labels.newFile,
+          accelerator: "CmdOrCtrl+N",
+          click: () => mainWindow?.webContents.send("menu:new-file")
+        },
+        {
+          label: labels.openFile,
+          accelerator: "CmdOrCtrl+O",
+          click: () => mainWindow?.webContents.send("menu:open-file")
+        },
+        { type: "separator" },
+        {
+          label: labels.save,
+          accelerator: "CmdOrCtrl+S",
+          click: () => mainWindow?.webContents.send("menu:save")
+        },
+        {
+          label: labels.saveAs,
+          accelerator: "CmdOrCtrl+Shift+S",
+          click: () => mainWindow?.webContents.send("menu:save-as")
+        }
+      ]
+    },
+    {
+      label: labels.edit,
+      submenu: [
+        { label: labels.undo, accelerator: "CmdOrCtrl+Z", role: "undo" },
+        { label: labels.redo, accelerator: "CmdOrCtrl+Shift+Z", role: "redo" },
+        { type: "separator" },
+        { label: labels.cut, accelerator: "CmdOrCtrl+X", role: "cut" },
+        { label: labels.copy, accelerator: "CmdOrCtrl+C", role: "copy" },
+        { label: labels.paste, accelerator: "CmdOrCtrl+V", role: "paste" },
+        { label: labels.selectAll, accelerator: "CmdOrCtrl+A", role: "selectAll" }
+      ]
+    },
+    {
+      label: labels.view,
+      submenu: [
+        { label: labels.reload, accelerator: "CmdOrCtrl+R", role: "reload" },
+        { label: labels.forceReload, accelerator: "CmdOrCtrl+Shift+R", role: "forceReload" },
+        { label: labels.toggleDevTools, accelerator: "CmdOrCtrl+Shift+I", role: "toggleDevTools" },
+        { type: "separator" },
+        { label: labels.actualSize, accelerator: "CmdOrCtrl+0", role: "resetZoom" },
+        { label: labels.zoomIn, accelerator: "CmdOrCtrl+Plus", role: "zoomIn" },
+        { label: labels.zoomOut, accelerator: "CmdOrCtrl+-", role: "zoomOut" },
+        { type: "separator" },
+        { label: labels.toggleFullScreen, accelerator: "F11", role: "togglefullscreen" }
+      ]
+    },
+    {
+      label: labels.window,
+      submenu: [
+        { label: labels.minimize, accelerator: "CmdOrCtrl+M", role: "minimize" },
+        { label: labels.close, accelerator: "CmdOrCtrl+W", role: "close" }
+      ]
+    },
+    {
+      label: labels.help,
+      submenu: [
+        {
+          label: labels.about,
+          click: () => {
+          }
+        }
+      ]
+    }
+  ];
+  return import_electron.Menu.buildFromTemplate(template);
+}
 var SUPPORTED_EXT = /* @__PURE__ */ new Set([".md", ".markdown", ".txt"]);
 var SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", ".svn", ".hg", ".DS_Store"]);
 var activeVault = null;
@@ -356,6 +487,10 @@ import_electron.ipcMain.handle("vault:set-last", async (_event, vaultPath) => {
   await writeVaultState({ lastVault: vaultPath, recents });
   return { ok: true };
 });
+import_electron.ipcMain.handle("menu:set-language", (_event, lang) => {
+  import_electron.Menu.setApplicationMenu(buildAppMenu(getMenuLabels(lang)));
+  return { ok: true };
+});
 import_electron.app.whenReady().then(() => {
   import_electron.protocol.handle("nexus-vault", async (request) => {
     try {
@@ -375,6 +510,7 @@ import_electron.app.whenReady().then(() => {
     }
   });
   createWindow();
+  import_electron.Menu.setApplicationMenu(buildAppMenu(getMenuLabels("en")));
 });
 import_electron.app.on("window-all-closed", () => {
   stopWatcher();

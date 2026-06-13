@@ -54,7 +54,90 @@ export interface ToolbarGroup {
 export interface ToolbarUIOptions {
   groups?: ToolbarGroup[];
   onFullscreen?: () => void;
+  labels?: Partial<ToolbarLabels>;
 }
+
+export interface ToolbarLabels {
+  undo: string;
+  redo: string;
+  insertLink: string;
+  heading2: string;
+  heading3: string;
+  moreHeadings: string;
+  bold: string;
+  italic: string;
+  strikethrough: string;
+  underline: string;
+  inlineCode: string;
+  blockquote: string;
+  codeBlock: string;
+  orderedList: string;
+  unorderedList: string;
+  textColor: string;
+  highlight: string;
+  insertImage: string;
+  fullscreen: string;
+  heading1: string;
+  heading4: string;
+  heading5: string;
+  heading6: string;
+  normalText: string;
+}
+
+const DEFAULT_TOOLBAR_LABELS: ToolbarLabels = {
+  undo: "Undo",
+  redo: "Redo",
+  insertLink: "Insert link",
+  heading2: "Heading 2",
+  heading3: "Heading 3",
+  moreHeadings: "More headings",
+  bold: "Bold",
+  italic: "Italic",
+  strikethrough: "Strikethrough",
+  underline: "Underline",
+  inlineCode: "Inline code",
+  blockquote: "Blockquote",
+  codeBlock: "Code block",
+  orderedList: "Ordered list",
+  unorderedList: "Unordered list",
+  textColor: "Text color",
+  highlight: "Highlight",
+  insertImage: "Insert image",
+  fullscreen: "Fullscreen",
+  heading1: "Heading 1",
+  heading4: "Heading 4",
+  heading5: "Heading 5",
+  heading6: "Heading 6",
+  normalText: "Normal text",
+};
+
+/** 中文工具栏标签预设。 */
+export const zhToolbarLabels: ToolbarLabels = {
+  undo: "撤销",
+  redo: "重做",
+  insertLink: "插入链接",
+  heading2: "标题 2",
+  heading3: "标题 3",
+  moreHeadings: "更多标题",
+  bold: "加粗",
+  italic: "斜体",
+  strikethrough: "删除线",
+  underline: "下划线",
+  inlineCode: "行内代码",
+  blockquote: "引用",
+  codeBlock: "代码块",
+  orderedList: "有序列表",
+  unorderedList: "无序列表",
+  textColor: "文字颜色",
+  highlight: "高亮",
+  insertImage: "插入图片",
+  fullscreen: "全屏",
+  heading1: "标题 1",
+  heading4: "标题 4",
+  heading5: "标题 5",
+  heading6: "标题 6",
+  normalText: "正文",
+};
 
 export interface ToolbarUI {
   element: HTMLElement;
@@ -132,57 +215,62 @@ function installToolbarTooltip(button: HTMLButtonElement): () => void {
   };
 }
 
+function resolveToolbarLabels(options?: ToolbarUIOptions): ToolbarLabels {
+  return { ...DEFAULT_TOOLBAR_LABELS, ...options?.labels };
+}
+
 function defaultGroups(options?: ToolbarUIOptions): ToolbarGroup[] {
+  const l = resolveToolbarLabels(options);
   return [
     {
       buttons: [
-        { id: "undo", title: "Undo", icon: iconUndo, action: (e) => e.undo() },
-        { id: "redo", title: "Redo", icon: iconRedo, action: (e) => e.redo() },
+        { id: "undo", title: l.undo, icon: iconUndo, action: (e) => e.undo() },
+        { id: "redo", title: l.redo, icon: iconRedo, action: (e) => e.redo() },
       ],
     },
     {
       buttons: [
-        { id: "link", title: "Insert link", icon: iconLink, action: insertLink },
+        { id: "link", title: l.insertLink, icon: iconLink, action: insertLink },
       ],
     },
     {
       buttons: [
-        { id: "h2", title: "Heading 2", icon: iconH2, action: (e) => toggleHeading(e, 2) },
-        { id: "h3", title: "Heading 3", icon: iconH3, action: (e) => toggleHeading(e, 3) },
-        { id: "heading-menu", title: "More headings", icon: iconHeadingMenu, action: () => {} },
+        { id: "h2", title: l.heading2, icon: iconH2, action: (e) => toggleHeading(e, 2) },
+        { id: "h3", title: l.heading3, icon: iconH3, action: (e) => toggleHeading(e, 3) },
+        { id: "heading-menu", title: l.moreHeadings, icon: iconHeadingMenu, action: () => {} },
       ],
     },
     {
       buttons: [
-        { id: "bold", title: "Bold", icon: iconBold, action: toggleBold },
-        { id: "italic", title: "Italic", icon: iconItalic, action: toggleItalic },
-        { id: "strikethrough", title: "Strikethrough", icon: iconStrikethrough, action: toggleStrikethrough },
-        { id: "underline", title: "Underline", icon: iconUnderline, action: (e) => toggleWrap(e, "<u>") },
-        { id: "inline-code", title: "Inline code", icon: iconInlineCode, action: toggleInlineCode },
+        { id: "bold", title: l.bold, icon: iconBold, action: toggleBold },
+        { id: "italic", title: l.italic, icon: iconItalic, action: toggleItalic },
+        { id: "strikethrough", title: l.strikethrough, icon: iconStrikethrough, action: toggleStrikethrough },
+        { id: "underline", title: l.underline, icon: iconUnderline, action: (e) => toggleWrap(e, "<u>") },
+        { id: "inline-code", title: l.inlineCode, icon: iconInlineCode, action: toggleInlineCode },
       ],
     },
     {
       buttons: [
-        { id: "blockquote", title: "Blockquote", icon: iconBlockquote, action: toggleBlockquote },
-        { id: "code-block", title: "Code block", icon: iconCodeBlock, action: insertCodeBlock },
+        { id: "blockquote", title: l.blockquote, icon: iconBlockquote, action: toggleBlockquote },
+        { id: "code-block", title: l.codeBlock, icon: iconCodeBlock, action: insertCodeBlock },
       ],
     },
     {
       buttons: [
-        { id: "ordered-list", title: "Ordered list", icon: iconOrderedList, action: toggleOrderedList },
-        { id: "unordered-list", title: "Unordered list", icon: iconUnorderedList, action: toggleUnorderedList },
+        { id: "ordered-list", title: l.orderedList, icon: iconOrderedList, action: toggleOrderedList },
+        { id: "unordered-list", title: l.unorderedList, icon: iconUnorderedList, action: toggleUnorderedList },
       ],
     },
     {
       buttons: [
-        { id: "text-color", title: "Text color", icon: iconTextColor, action: () => {} },
-        { id: "highlight", title: "Highlight", icon: iconHighlight, action: () => {} },
+        { id: "text-color", title: l.textColor, icon: iconTextColor, action: () => {} },
+        { id: "highlight", title: l.highlight, icon: iconHighlight, action: () => {} },
       ],
     },
     {
       buttons: [
-        { id: "image", title: "Insert image", icon: iconImage, action: insertImage },
-        { id: "fullscreen", title: "Fullscreen", icon: iconFullscreen, action: () => options?.onFullscreen?.() },
+        { id: "image", title: l.insertImage, icon: iconImage, action: insertImage },
+        { id: "fullscreen", title: l.fullscreen, icon: iconFullscreen, action: () => options?.onFullscreen?.() },
       ],
     },
   ];
@@ -257,6 +345,7 @@ function showHeadingDropdown(
   editor: EditorAPI,
   anchorBtn: HTMLElement,
   onClose: () => void,
+  labels?: ToolbarLabels,
 ): { destroy: () => void } {
   const menu = document.createElement("div");
   menu.className = "nexus-toolbar-dropdown";
@@ -267,14 +356,15 @@ function showHeadingDropdown(
   menu.style.top = rect.bottom + 4 + "px";
   menu.style.left = rect.left + "px";
 
+  const l = labels ?? DEFAULT_TOOLBAR_LABELS;
   const levels = [
-    { level: 1, label: "Heading 1", fontSize: "17px", fontWeight: "700" },
-    { level: 2, label: "Heading 2", fontSize: "15px", fontWeight: "700" },
-    { level: 3, label: "Heading 3", fontSize: "14px", fontWeight: "600" },
-    { level: 4, label: "Heading 4", fontSize: "13px", fontWeight: "600" },
-    { level: 5, label: "Heading 5", fontSize: "13px", fontWeight: "500" },
-    { level: 6, label: "Heading 6", fontSize: "12px", fontWeight: "500" },
-    { level: 0, label: "Normal text", fontSize: "13px", fontWeight: "400" },
+    { level: 1, label: l.heading1, fontSize: "17px", fontWeight: "700" },
+    { level: 2, label: l.heading2, fontSize: "15px", fontWeight: "700" },
+    { level: 3, label: l.heading3, fontSize: "14px", fontWeight: "600" },
+    { level: 4, label: l.heading4, fontSize: "13px", fontWeight: "600" },
+    { level: 5, label: l.heading5, fontSize: "13px", fontWeight: "500" },
+    { level: 6, label: l.heading6, fontSize: "12px", fontWeight: "500" },
+    { level: 0, label: l.normalText, fontSize: "13px", fontWeight: "400" },
   ];
 
   const itemCleanups: Array<() => void> = [];
@@ -445,6 +535,7 @@ const DROPDOWN_IDS = new Set(["heading-menu", "text-color", "highlight"]);
 
 export function createToolbarUI(editor: EditorAPI, options?: ToolbarUIOptions): ToolbarUI {
   const groups = options?.groups ?? defaultGroups(options);
+  const resolvedLabels = resolveToolbarLabels(options);
   const toolbar = document.createElement("div");
   toolbar.className = "nexus-toolbar";
   toolbar.setAttribute("role", "toolbar");
@@ -505,7 +596,7 @@ export function createToolbarUI(editor: EditorAPI, options?: ToolbarUIOptions): 
           if (activeDropdown) { closeDropdown(); return; }
 
           if (btn.id === "heading-menu") {
-            activeDropdown = showHeadingDropdown(editor, button, closeDropdown);
+            activeDropdown = showHeadingDropdown(editor, button, closeDropdown, resolvedLabels);
           } else if (btn.id === "text-color") {
             activeDropdown = showColorPicker(editor, button, COLOR_PALETTE, applyTextColor, closeDropdown);
           } else if (btn.id === "highlight") {
